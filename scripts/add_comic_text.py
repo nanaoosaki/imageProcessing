@@ -213,11 +213,13 @@ if __name__ == "__main__":
     parser.add_argument("input", help="Path to input image")
     parser.add_argument("output", help="Path to save output image")
     parser.add_argument("--sketch", action="store_true", help="Use sketch-like styling")
+    parser.add_argument("--config", help="Path to text configuration file")
+    parser.add_argument("--preview", action="store_true", help="Generate a visualization of the text positions before adding text")
     
     args = parser.parse_args()
     
-    # Define text configurations based on the specific task
-    text_configs = [
+    # Define default text configurations based on the specific task
+    default_text_configs = [
         {
             'text': "WE HAVE A NEW DASHBOARD WITH ALL OUR KPI TRACKED!",
             'position': (400, 30),  # Top of the image
@@ -252,6 +254,116 @@ if __name__ == "__main__":
             'angle': 1.5  # More pronounced tilt
         }
     ]
+    
+    # Load text configurations from file if specified
+    text_configs = default_text_configs
+    if args.config:
+        try:
+            # Try to import the configuration file as a module
+            import importlib.util
+            import sys
+            
+            # Strip .py extension if provided
+            config_path = args.config
+            if config_path.endswith('.py'):
+                config_path = config_path[:-3]
+                
+            # Replace path separators with dots for module name
+            module_name = config_path.replace('/', '.').replace('\\', '.')
+            
+            # Remove ./ prefix if present
+            if module_name.startswith('./'):
+                module_name = module_name[2:]
+            
+            # Try different import methods
+            try:
+                # Method 1: Direct import
+                config_module = __import__(module_name)
+                if hasattr(config_module, 'text_configs'):
+                    text_configs = config_module.text_configs
+                elif hasattr(config_module, 'region_configs'):
+                    text_configs = config_module.region_configs
+            except ImportError:
+                # Method 2: Using importlib.util
+                spec = importlib.util.spec_from_file_location(module_name, args.config + '.py')
+                config_module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(config_module)
+                
+                if hasattr(config_module, 'text_configs'):
+                    text_configs = config_module.text_configs
+                elif hasattr(config_module, 'region_configs'):
+                    text_configs = config_module.region_configs
+            
+            print(f"Loaded {len(text_configs)} text configurations from {args.config}")
+        except Exception as e:
+            print(f"Error loading configuration file: {e}")
+            print("Using default text configurations instead.")
+    
+    # Preview text positions if requested
+    if args.preview:
+        try:
+            import cv2
+            
+            # Load the image
+            _, cv_image = load_image(args.input)
+            
+            # Create a copy of the image
+            preview_image = cv_image.copy()
+            
+            # Draw position markers for each text config
+            for i, config in enumerate(text_configs):
+                position = config.get('position', (0, 0))
+                x, y = position
+                
+                # Calculate text size (approximate)
+                font_size = config.get('font_size', 16)
+                text = config.get('text', f"Text {i+1}")
+                max_width = config.get('max_width', 200)
+                
+                # Calculate text box dimensions (approximate)
+                text_width = min(len(text) * font_size * 0.6, max_width)
+                text_height = font_size * (1 + text.count('\n') + text_width // max_width)
+                
+                # Draw position marker
+                cv2.circle(preview_image, (x, y), 5, (0, 0, 255), -1)
+                
+                # Draw text box outline
+                padding = config.get('padding', 8)
+                half_width = text_width // 2
+                half_height = text_height // 2
+                cv2.rectangle(
+                    preview_image,
+                    (x - half_width - padding, y - half_height - padding),
+                    (x + half_width + padding, y + half_height + padding),
+                    (0, 255, 255),
+                    2
+                )
+                
+                # Draw text config number
+                cv2.putText(
+                    preview_image,
+                    f"Text {i+1}",
+                    (x - half_width, y - half_height - 20),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.7,
+                    (0, 255, 255),
+                    2
+                )
+            
+            # Save preview image
+            preview_path = args.output.replace('.png', '_preview.png')
+            cv2.imwrite(preview_path, preview_image)
+            print(f"Saved text position preview to: {preview_path}")
+            
+            # Show preview image
+            cv2.imshow('Text Positions Preview', preview_image)
+            print("Press any key to continue...")
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
+            
+        except Exception as e:
+            print(f"Error generating preview: {e}")
+            print("Continuing without preview...")
     
     # If sketch style is specified, adjust the text configuration
     if args.sketch:
