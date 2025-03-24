@@ -1,0 +1,6 @@
+Compare the following Python libraries for image processing and their capabilities for text detection/removal and text addition:
+1) Pillow (PIL)
+2) OpenCV
+3) scikit-image
+
+Include pros and cons of each library for our specific use case. 

@@ -1,0 +1,13 @@
+Analyze the requirements for building a small image processor that can:
+1) Remove text from images (PNG files)
+2) Add text to images with customizable font options
+
+Consider:
+- Technical challenges and potential approaches for text detection and removal
+- Best libraries for image processing in Python
+- Font handling and text placement options
+- Project architecture
+- User interface considerations
+- Testing methodology
+
+Break down the project into clear phases with specific tasks. 
